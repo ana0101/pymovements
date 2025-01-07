@@ -104,6 +104,84 @@ EBLINK R 10000018	10000020	2
 END	10000022 	SAMPLES	EVENTS	RES	  38.54	  31.12
 """
 
+ASC_TEXT_2 = r"""
+** DATE: Wed Mar  8 09:25:20 2023
+** TYPE: EDF_FILE BINARY EVENT SAMPLE TAGGED
+** VERSION: EYELINK II 1
+** SOURCE: EYELINK CL
+** EYELINK II CL v6.12 Feb  1 2018 (EyeLink Portable Duo)
+** CAMERA: EyeLink USBCAM Version 1.01
+** SERIAL NUMBER: CLU-DAB50
+** CAMERA_CONFIG: DAB50200.SCD
+** RECORDED BY pymovements
+** SREB2.2.299 WIN32 LID:20A87A96 Mod:2023.03.08 11:03 MEZ
+**
+
+some
+lines
+MSG	2154555 RECCFG CR 1000 2 1 L
+MSG	2154555 ELCLCFG BTABLER
+MSG	2095865 DISPLAY_COORDS 0 0 1279 1023
+PRESCALER	1
+VPRESCALER	1
+PUPIL	AREA
+EVENTS	GAZE	LEFT	RATE	1000.00	TRACKING	CR	FILTER	2
+SAMPLES	GAZE	LEFT	RATE	1000.00	TRACKING	CR	FILTER	2	INPUT
+the next line has all additional trial columns set to None
+START	10000000 	RIGHT	SAMPLES	EVENTS
+10000000	  850.7	  717.5	  714.0		...
+END	10000001 	SAMPLES	EVENTS	RES	  38.54	  31.12
+MSG 10000001 START_A
+START	10000002 	RIGHT	SAMPLES	EVENTS
+the next line now should have the task column set to A
+10000002	  850.7	  717.5	  714.0		...
+END	10000002 	SAMPLES	EVENTS	RES	  38.54	  31.12
+MSG 10000003 STOP_A
+the task should be set to None again
+START	10000004 	RIGHT	SAMPLES	EVENTS
+10000004	  850.7	  717.5	  714.0		...
+END	10000005 	SAMPLES	EVENTS	RES	  38.54	  31.12
+MSG 10000005 METADATA_1 123
+MSG 10000005 START_B
+the next line now should have the task column set to B
+START	10000006 	RIGHT	SAMPLES	EVENTS
+10000006	  850.7	  717.5	  714.0		...
+END	10000007 	SAMPLES	EVENTS	RES	  38.54	  31.12
+MSG 10000007 START_TRIAL_1
+the next line now should have the trial column set to 1
+START	10000008 	RIGHT	SAMPLES	EVENTS
+10000008	  850.7	  717.5	  714.0		...
+END	10000009 	SAMPLES	EVENTS	RES	  38.54	  31.12
+MSG 10000009 STOP_TRIAL_1
+MSG 10000010 START_TRIAL_2
+the next line now should have the trial column set to 2
+START	10000011 	RIGHT	SAMPLES	EVENTS
+10000011	  850.7	  717.5	  714.0		...
+END	10000012 	SAMPLES	EVENTS	RES	  38.54	  31.12
+MSG 10000012 STOP_TRIAL_2
+MSG 10000013 START_TRIAL_3
+the next line now should have the trial column set to 3
+START	10000014 	RIGHT	SAMPLES	EVENTS
+MSG 10000014 METADATA_2 abc
+MSG 10000014 METADATA_1 456
+10000014	  850.7	  717.5	  714.0		...
+END	10000015 	SAMPLES	EVENTS	RES	  38.54	  31.12
+MSG 10000015 STOP_TRIAL_3
+MSG 10000016 STOP_B
+task and trial should be set to None again
+MSG 10000017 METADATA_3
+START	10000017 	RIGHT	SAMPLES	EVENTS
+10000017	  850.7	  717.5	  .	    ...
+SBLINK R 10000018
+10000019	   .	   .	    0.0	    0.0	...
+10000020	   .	   .	    0.0	    0.0	...
+EBLINK R 10000018	10000020	2
+10000021	   .	   .	    0.0	    0.0	...
+END	10000022 	SAMPLES	EVENTS	RES	  38.54	  31.12
+"""
+
+ASC_TEXTS = [ASC_TEXT, ASC_TEXT_2]
+
 PATTERNS = [
     {
         'pattern': 'START_A',
@@ -193,17 +271,18 @@ EXPECTED_METADATA = {
 
 
 def test_parse_eyelink(tmp_path):
-    filepath = tmp_path / 'sub.asc'
-    filepath.write_text(ASC_TEXT)
+    for i, asc_text in enumerate(ASC_TEXTS):
+        filepath = tmp_path / f'sub_{i}.asc'
+        filepath.write_text(asc_text)
 
-    df, metadata = pm.utils.parsing.parse_eyelink(
-        filepath,
-        patterns=PATTERNS,
-        metadata_patterns=METADATA_PATTERNS,
-    )
+        df, metadata = pm.utils.parsing.parse_eyelink(
+            filepath,
+            patterns=PATTERNS,
+            metadata_patterns=METADATA_PATTERNS,
+        )
 
-    assert_frame_equal(df, EXPECTED_DF, check_column_order=False)
-    assert metadata == EXPECTED_METADATA
+        assert_frame_equal(df, EXPECTED_DF, check_column_order=False)
+        assert metadata == EXPECTED_METADATA
 
 
 @pytest.mark.parametrize(
@@ -250,20 +329,21 @@ def test_from_asc_metadata_patterns(kwargs, expected_metadata):
     ],
 )
 def test_parse_eyelink_raises_value_error(tmp_path, patterns):
-    filepath = tmp_path / 'sub.asc'
-    filepath.write_text(ASC_TEXT)
+    for i, asc_text in enumerate(ASC_TEXTS):
+        filepath = tmp_path / f'sub_{i}.asc'
+        filepath.write_text(asc_text)
 
-    with pytest.raises(ValueError) as excinfo:
-        pm.utils.parsing.parse_eyelink(
-            filepath,
-            patterns=patterns,
-        )
+        with pytest.raises(ValueError) as excinfo:
+            pm.utils.parsing.parse_eyelink(
+                filepath,
+                patterns=patterns,
+            )
 
-    msg, = excinfo.value.args
+        msg, = excinfo.value.args
 
-    expected_substrings = ['invalid pattern', '1']
-    for substring in expected_substrings:
-        assert substring in msg
+        expected_substrings = ['invalid pattern', '1']
+        for substring in expected_substrings:
+            assert substring in msg
 
 
 @pytest.mark.parametrize(
